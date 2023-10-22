@@ -1,5 +1,6 @@
 use std::{any::Any, fmt::Debug};
 
+use async_trait::async_trait;
 use druid::Data;
 use serde::{Deserialize, Serialize};
 
@@ -30,14 +31,21 @@ pub fn to_player_move<'a, MoveType: Deserialize<'a>>(p_move: &'a PlayerMove) -> 
         .unwrap_or(None)
 }
 
+#[async_trait]
 pub trait GameTrait: dyn_clone::DynClone + Send + Debug {
-    fn player_moves(&mut self, turn_token: TurnToken, player_move: PlayerMove) -> PlayerMoveResult;
-    fn current_player_disconnected(&mut self, turn_token: TurnToken) -> Option<PlayerTurn>;
+    async fn player_moves(
+        &mut self,
+        turn_token: TurnToken,
+        player_move: PlayerMove,
+    ) -> PlayerMoveResult;
+    async fn current_player_disconnected(&mut self, turn_token: TurnToken) -> Option<PlayerTurn>;
 
-    fn try_start_game(&mut self) -> Option<PlayerTurn>;
+    async fn try_start_game(&mut self) -> Option<PlayerTurn>;
 
-    fn player_connected(&mut self, user: User);
-    fn player_disconnected(&mut self, user: &str);
+    async fn player_connected(&mut self, user: User);
+    async fn player_disconnected(&mut self, user: &str);
+
+    async fn reset(&mut self, users: Vec<User>);
 
     fn paint(&self, ctx: &mut druid::PaintCtx);
 

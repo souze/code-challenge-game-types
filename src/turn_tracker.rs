@@ -7,6 +7,7 @@ use log::debug;
 pub struct TurnTracker {
     players: Vec<User>,
     next_player_index: usize,
+    single_player_mode_started: bool,
 }
 
 impl TurnTracker {
@@ -14,9 +15,9 @@ impl TurnTracker {
         let mut players: String = String::new();
         for (i, User { name, .. }) in enumerate(&self.players) {
             if i == self.next_player_index {
-                players += format!("*{name}").as_str();
+                players += format!(", *{name}").as_str();
             } else {
-                players += name.to_string().as_str();
+                players += format!(", {name}").as_str();
             }
         }
         players
@@ -27,12 +28,11 @@ impl TurnTracker {
         Self {
             players,
             next_player_index: 0,
+            single_player_mode_started: false,
         }
     }
 
     pub fn remove_player(&mut self, username: &str) {
-        let p_str = self.player_string();
-        debug!("Removing player {username}, left: {p_str}");
         let (i, _) = self
             .players
             .iter()
@@ -53,22 +53,30 @@ impl TurnTracker {
             .filter(|u| u.name != username)
             .map(Clone::clone)
             .collect();
+        let p_str = self.player_string();
+        debug!("Removing player {username}, left: {p_str}");
     }
 
     pub fn add_player(&mut self, user: User) {
-        let p_str = self.player_string();
-        debug!("Adding player {user:?}, new: {p_str}");
+        let p_name = user.name.clone();
         self.players.push(user);
+        if self.players.len() == 2 && self.single_player_mode_started {
+            self.next_player_index = 1;
+        }
+        let p_str = self.player_string();
+        debug!("Adding player {p_name}, new: {p_str}");
     }
 
     pub fn advance_player(&mut self) -> Option<User> {
-        let p_str = self.player_string();
-        debug!("Advancing player, new: {p_str}");
         if self.players.is_empty() {
             return None;
         }
+        self.single_player_mode_started = self.players.len() == 1;
+
         let current_index = self.next_player_index;
         self.next_player_index = (self.next_player_index + 1) % self.players.len();
+        let p_str = self.player_string();
+        debug!("Advancing player, new: {p_str}");
         self.players.get(current_index).map(Clone::clone)
     }
 
@@ -129,9 +137,9 @@ mod test {
         t.add_player(p2.clone());
         t.add_player(p3.clone());
         for _ in 1..10 {
-            assert_eq!(t.advance_player(), Some(p1.clone()));
             assert_eq!(t.advance_player(), Some(p2.clone()));
             assert_eq!(t.advance_player(), Some(p3.clone()));
+            assert_eq!(t.advance_player(), Some(p1.clone()));
         }
     }
     #[test]
@@ -187,6 +195,28 @@ mod test {
             assert_eq!(t.advance_player(), Some(p1.clone()));
             assert_eq!(t.advance_player(), Some(p2.clone()));
         }
+    }
+
+    #[test]
+    fn add_one_advance_add_one_then_rinse_repeat() {
+        let p1 = make_player("p1");
+        let p2 = make_player("p2");
+        let mut t = TurnTracker::new(vec![]);
+
+        assert_eq!(t.advance_player(), None);
+        t.add_player(p1.clone());
+        assert_eq!(t.advance_player(), Some(p1.clone()));
+        t.add_player(p2.clone());
+        assert_eq!(t.advance_player(), Some(p2.clone()));
+
+        t.remove_player("p1");
+        t.remove_player("p2");
+
+        assert_eq!(t.advance_player(), None);
+        t.add_player(p1.clone());
+        assert_eq!(t.advance_player(), Some(p1.clone()));
+        t.add_player(p2.clone());
+        assert_eq!(t.advance_player(), Some(p2.clone()));
     }
 
     #[test]
