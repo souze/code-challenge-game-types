@@ -32,6 +32,10 @@ impl TurnTracker {
         }
     }
 
+    pub fn is_playing(&self, username: &str) -> bool {
+        self.players.iter().any(|p| p.name == username)
+    }
+
     pub fn remove_player(&mut self, username: &str) {
         let (i, _) = self
             .players
@@ -58,6 +62,9 @@ impl TurnTracker {
     }
 
     pub fn add_player(&mut self, user: User) {
+        if self.players.iter().any(|p| p.name == user.name) {
+            panic!("Player with identical name added twice");
+        }
         let p_name = user.name.clone();
         self.players.push(user);
         if self.players.len() == 2 && self.single_player_mode_started {
@@ -82,6 +89,14 @@ impl TurnTracker {
 
     pub fn num_players(&self) -> usize {
         self.players.len()
+    }
+
+    pub fn is_first_player(&self, name: &str) -> bool {
+        if let Some(first_player) = self.players.first() {
+            name == first_player.name
+        } else {
+            false
+        }
     }
 }
 
